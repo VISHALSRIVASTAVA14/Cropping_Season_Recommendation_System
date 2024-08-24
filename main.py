@@ -44,7 +44,7 @@ class Cropping:
         label3.place(x=30, y=30, width=250, height=40)
 
         combobox1 = ttk.Combobox(labelframe1, font=("lucida sans", 15, "bold"), state="readonly", textvariable=self.region)
-        combobox1["values"] = ["SELECT REGION"]
+        combobox1["values"]=["SELECT REGION"]
         combobox1.current(0)
         combobox1.place(x=330, y=30, width=280, height=40)
 
@@ -53,7 +53,7 @@ class Cropping:
         label4.place(x=30, y=100, width=250, height=40)
 
         combobox2 = ttk.Combobox(labelframe1, font=("lucida sans", 15, "bold"), state="readonly", textvariable=self.crop)
-        combobox2["values"] = ["SELECT CROP"]
+        combobox2["values"]=["SELECT CROP"]
         combobox2.current(0)
         combobox2.place(x=330, y=100, width=280, height=40)
 
@@ -62,7 +62,7 @@ class Cropping:
         label5.place(x=30, y=170, width=250, height=40)
 
         combobox3 = ttk.Combobox(labelframe1, font=("lucida sans", 15, "bold"), state="readonly", textvariable=self.soil)
-        combobox3["values"] = ["SELECT SOIL"]
+        combobox3["values"]=["SELECT SOIL"]
         combobox3.current(0)
         combobox3.place(x=330, y=170, width=280, height=40)
 
@@ -81,7 +81,7 @@ class Cropping:
         f1 = Frame(label2, bg="white")
         f1.place(x=700, y=30, width=620, height=510)
 
-        #Scrollbar
+        # Scrollbar
         scroll_x = ttk.Scrollbar(f1, orient="horizontal")
         scroll_y = ttk.Scrollbar(f1, orient="vertical")
 
@@ -122,16 +122,12 @@ class Cropping:
         else:
             self.temperature, self.rainfall, self.humidity = self.get_weather_data()
             
-            #Prepare input data
             x_input = [self.region.get(), self.crop.get(), self.soil.get(), self.temperature, self.humidity, self.rainfall]
             
-            #Load data and train the model
             x, y = self.load_data_and_train(x_input)
             
-            #Predict the season
             self.season = self.predict_season(self.model, x_input)
             
-            #Insert into the database
             conn = mysql.connector.connect(host="localhost", user="root", password="An@nd3009", database="cropping_recommendation_system")
             my_cursor = conn.cursor()
             my_cursor.execute("INSERT INTO recommendation (FARMER_NAME, REGION, CROP, SOIL_TYPE, TEMPERATURE, RAINFALL, HUMIDITY, SEASON) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
@@ -139,34 +135,40 @@ class Cropping:
             conn.commit()
             conn.close()
 
-            #Update Treeview
             self.fetch_data()
 
             messagebox.showinfo("Prediction", f"The recommended cropping season is: {self.season}")
 
     def get_weather_data(self):
-        api_key = "YOUR_WEATHER_API_KEY"
-        url = F"http://api.weatherapi.com/v1/current.json?key={api_key}&q={self.region.get()}"
-        response = requests.get(url)
-        data = response.json()
+        api_key = "7b8a0ef385ce8539724d9c8984176bde"
+        region = self.region.get()
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={region}&appid={api_key}&units=metric"
         
-        temperature = data["current"]["temp_c"]
-        humidity = data["current"]["humidity"]
-        rainfall = data["current"]["precip_mm"]
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  #Check for HTTP errors
+            data = response.json()
+
+            temperature = data["main"]["temp"]
+            humidity = data["main"]["humidity"]
+            
+            #Rainfall is part of the 'rain' dictionary, which might not be present if there is no rain
+            rainfall = data.get("rain", {}).get("1h", 0)  #Get the rainfall in the last hour, default to 0 if not available
+
+            return temperature, rainfall, humidity
         
-        return temperature, rainfall, humidity
+        except requests.exceptions.RequestException as e:
+            messagebox.showerror("Error", f"Failed to retrieve weather data: {e}")
+            return None, None, None
     
     def load_data_and_train(self, x_input):
-        #Establish connection to the database
         conn = mysql.connector.connect(host="localhost", user="root", password="An@nd3009", database="cropping_recommendation_system")
         my_cursor = conn.cursor()
 
-        #Retrieve all data for training
         my_cursor.execute("SELECT * FROM recommendation")
         records = my_cursor.fetchall()
         conn.close()
 
-        #Prepare the data if there are previous records
         if records:
             df = pd.DataFrame(records, columns=["ID", "FARMER_NAME", "REGION", "CROP", "SOIL_TYPE", "TEMPERATURE", "RAINFALL", "HUMIDITY", "SEASON"])
             x = df[["REGION", "CROP", "SOIL_TYPE", "TEMPERATURE", "HUMIDITY", "RAINFALL"]]
@@ -188,21 +190,19 @@ class Cropping:
             scaler = StandardScaler()
             x = scaler.fit_transform(x)
 
-            # Train the model
+            #Train the model
             x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
             self.model = RandomForestClassifier()
             self.model.fit(x_train, y_train)
 
-            # Optional: Evaluate the model
+            #Evaluate the model
             y_pred = self.model.predict(x_test)
-            accuracy = accuracy_score(y_test,y_pred)
+            accuracy = accuracy_score(y_test, y_pred)
             print(f"Model accuracy: {accuracy * 100:.2f}%")
 
-            #Return the processed new input data
-            return scaler.transform(new_data),y
+            return scaler.transform(new_data), y
 
         else:
-            #In case of no prior data, initialize the first entry
             df = pd.DataFrame([x_input], columns=["REGION", "CROP", "SOIL_TYPE", "TEMPERATURE", "HUMIDITY", "RAINFALL"])
 
             #Label encode categorical variables
@@ -217,19 +217,17 @@ class Cropping:
             scaler = StandardScaler()
             x_input = scaler.fit_transform(df)
 
-            # Initialize model with dummy prediction (e.g., "Unknown")
+            #Initialize model with dummy prediction
             self.model = RandomForestClassifier()
             self.model.fit(x_input, ["Unknown"])  #Placeholder training with dummy label
 
             return x_input, ["Unknown"]
 
     def predict_season(self, model, x_input):
-        #Predict the season for the given input
         prediction = model.predict(x_input)
         return prediction[0]
 
     def fetch_data(self):
-        #Fetch data to update the treeview
         conn = mysql.connector.connect(host="localhost", user="root", password="An@nd3009", database="cropping_recommendation_system")
         my_cursor = conn.cursor()
         my_cursor.execute("SELECT * FROM recommendation")
