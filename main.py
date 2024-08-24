@@ -140,9 +140,9 @@ class Cropping:
             messagebox.showinfo("Prediction", f"The recommended cropping season is: {self.season}")
 
     def get_weather_data(self):
-        api_key = "7b8a0ef385ce8539724d9c8984176bde"
+        api_key="your api key"
         region = self.region.get()
-        url = f"http://api.openweathermap.org/data/2.5/weather?q={region}&appid={api_key}&units=metric"
+        url = f"http://apiname/data/2.5/weather?q={region}&appid={api_key}&units=metric"
         
         try:
             response = requests.get(url)
