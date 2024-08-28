@@ -54,7 +54,7 @@ class Cropping:
         label3.place(x=30, y=30, width=250, height=40)
 
         combobox1 = ttk.Combobox(labelframe1, font=("lucida sans", 15, "bold"), state="readonly", textvariable=self.region)
-        combobox1["values"]=["SELECT REGION","Delhi","Mumbai","Rohtak","Jaisalmer","Kolkata","Jaipur"]
+        combobox1["values"] = ["SELECT REGION", "Delhi", "Mumbai", "Rohtak", "Jaisalmer", "Kolkata", "Jaipur"]
         combobox1.current(0)
         combobox1.place(x=330, y=30, width=280, height=40)
 
@@ -63,7 +63,7 @@ class Cropping:
         label4.place(x=30, y=100, width=250, height=40)
 
         combobox2 = ttk.Combobox(labelframe1, font=("lucida sans", 15, "bold"), state="readonly", textvariable=self.crop)
-        combobox2["values"]=["SELECT CROP","Rice","Wheat","Cotton","Tea"]
+        combobox2["values"] = ["SELECT CROP", "Rice", "Wheat", "Cotton", "Tea"]
         combobox2.current(0)
         combobox2.place(x=330, y=100, width=280, height=40)
 
@@ -72,7 +72,7 @@ class Cropping:
         label5.place(x=30, y=170, width=250, height=40)
 
         combobox3 = ttk.Combobox(labelframe1, font=("lucida sans", 15, "bold"), state="readonly", textvariable=self.soil)
-        combobox3["values"]=["SELECT SOIL","Alluvial","Red","Black","Clayey"]
+        combobox3["values"] = ["SELECT SOIL", "Alluvial", "Red", "Black", "Clayey"]
         combobox3.current(0)
         combobox3.place(x=330, y=170, width=280, height=40)
 
@@ -113,7 +113,7 @@ class Cropping:
         self.cropping_table.heading("SEASON", text="SEASON")
 
         self.cropping_table["show"] = "headings"
-        
+
         self.cropping_table.column("S.NO.", width=150)
         self.cropping_table.column("FARMER_NAME", width=150)
         self.cropping_table.column("REGION", width=150)
@@ -138,8 +138,9 @@ class Cropping:
 
             # Create the input feature set as a DataFrame
             x_input = pd.DataFrame([[self.region.get(), self.crop.get(), self.soil.get(), self.temperature, self.humidity, self.rainfall]], 
-                                columns=["REGION", "CROP", "SOIL_TYPE", "TEMPERATURE", "HUMIDITY", "RAINFALL"])
+                                   columns=["REGION", "CROP", "SOIL_TYPE", "TEMPERATURE", "HUMIDITY", "RAINFALL"])
 
+            # Load data and train the model
             x, y, le_region, le_crop, le_soil, scaler = self.load_data_and_train(x_input)
 
             if x is None:
@@ -147,7 +148,6 @@ class Cropping:
 
             # Encode the input data using label encoders
             try:
-                # Fit the encoders with existing labels and transform new labels
                 x_input["REGION"] = le_region.transform([self.region.get()])
                 x_input["CROP"] = le_crop.transform([self.crop.get()])
                 x_input["SOIL_TYPE"] = le_soil.transform([self.soil.get()])
@@ -165,10 +165,10 @@ class Cropping:
                 messagebox.showerror("Error", "Failed to predict the cropping season.")
                 return
 
-            conn = mysql.connector.connect(host="localhost", user="root", password="An@nd3009", database="cropping_recommendation_system")
+            conn = mysql.connector.connect(host="localhost", user="root", password="Amar0311@0704", database="cropping_recommendation_system")
             my_cursor = conn.cursor()
-            my_cursor.execute("INSERT INTO recommendation (S_NO,FARMER_NAME, REGION, CROP, SOIL_TYPE, TEMPERATURE, RAINFALL, HUMIDITY, SEASON) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                            (self.id, self.name.get(), self.region.get(), self.crop.get(), self.soil.get(), self.temperature, self.rainfall, self.humidity, self.season))
+            my_cursor.execute("INSERT INTO recommendation (ID,FARMER_NAME, REGION, CROP, SOIL_TYPE, TEMPERATURE, RAINFALL, HUMIDITY, SEASON) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                              (self.id, self.name.get(), self.region.get(), self.crop.get(), self.soil.get(), self.temperature, self.rainfall, self.humidity, self.season))
             self.id += 1
             conn.commit()
             conn.close()
@@ -177,112 +177,91 @@ class Cropping:
 
             messagebox.showinfo("Prediction", f"The recommended cropping season is: {self.season}")
 
-
     def get_weather_data(self):
-        api_key = "api_key"
-        region = self.region.get()
-        url = f"http://api.openweathermap.org/data/2.5/weather?q={region}&appid={api_key}&units=metric"
-        
         try:
-            response = requests.get(url)
-            response.raise_for_status()  # Check for HTTP errors
-            data = response.json()
-
-            temperature = data["main"]["temp"]
-            humidity = data["main"]["humidity"]
-            rainfall = data.get("rain", {}).get("1h", 0)  # Get the rainfall in the last hour, default to 0 if not available
-
+            # Simulate getting weather data (temperature, rainfall, humidity)
+            temperature = np.random.uniform(20, 40)
+            rainfall = np.random.uniform(50, 300)
+            humidity = np.random.uniform(40, 90)
             return temperature, rainfall, humidity
-        
-        except requests.exceptions.RequestException as e:
-            messagebox.showerror("Error", f"Failed to retrieve weather data: {e}")
+        except Exception as e:
+            print(f"Error in getting weather data: {e}")
             return None, None, None
-    
+
     def load_data_and_train(self, x_input):
-        conn = mysql.connector.connect(host="localhost", user="root", password="An@nd3009", database="cropping_recommendation_system")
-        my_cursor = conn.cursor()
+        try:
+            data = pd.DataFrame({
+                "REGION": ["Delhi", "Mumbai", "Rohtak", "Delhi", "Mumbai", "Chennai", "Kolkata", "Bangalore", "Lucknow", "Ahmedabad",
+                        "Pune", "Jaipur", "Chandigarh", "Patna", "Hyderabad", "Bhopal", "Indore", "Nagpur", "Vadodara", "Surat"],
+                "CROP": ["Rice", "Wheat", "Cotton", "Tea", "Rice", "Sugarcane", "Maize", "Barley", "Jute", "Pulses",
+                        "Sorghum", "Millets", "Groundnut", "Mustard", "Sunflower", "Soybean", "Tobacco", "Coffee", "Pepper", "Cardamom"],
+                "SOIL_TYPE": ["Alluvial", "Red", "Black", "Clayey", "Alluvial", "Alluvial", "Alluvial", "Loamy", "Alluvial", "Black",
+                            "Red", "Sandy", "Sandy", "Loamy", "Red", "Black", "Clayey", "Clayey", "Red", "Loamy"],
+                "TEMPERATURE": [30, 25, 35, 20, 33, 32, 28, 24, 30, 27, 26, 29, 31, 20, 32, 27, 24, 23, 28, 26],
+                "HUMIDITY": [60, 70, 80, 50, 55, 65, 75, 55, 85, 68, 72, 63, 58, 70, 67, 75, 60, 78, 62, 65],
+                "RAINFALL": [100, 150, 200, 90, 110, 200, 180, 75, 240, 130, 140, 160, 110, 120, 170, 125, 155, 190, 210, 180],
+                "SEASON": ["June - October", "November - March", "June - October", "November - March", "June - October", "June - October", 
+                        "June - October", "November - March", "June - October", "November - March", "June - October", 
+                        "June - October", "June - October", "November - March", "April - May", "June - October", "November - March", 
+                        "April - May", "June - October", "April - May"]
+            })
 
-        my_cursor.execute("SELECT * FROM recommendation")
-        records = my_cursor.fetchall()
-        conn.close()
-
-        if records:
-            df = pd.DataFrame(records, columns=["ID", "FARMER_NAME", "REGION", "CROP", "SOIL_TYPE", "TEMPERATURE", "RAINFALL", "HUMIDITY", "SEASON"])
-            x = df[["REGION", "CROP", "SOIL_TYPE", "TEMPERATURE", "HUMIDITY", "RAINFALL"]].copy()  # Create a copy
-            y = df["SEASON"]
+            x = data[["REGION", "CROP", "SOIL_TYPE", "TEMPERATURE", "HUMIDITY", "RAINFALL"]]
+            y = data["SEASON"]
 
             # Initialize label encoders
             le_region = LabelEncoder()
             le_crop = LabelEncoder()
             le_soil = LabelEncoder()
 
-            # Fit label encoders with the existing labels
-            le_region.fit(df["REGION"])
-            le_crop.fit(df["CROP"])
-            le_soil.fit(df["SOIL_TYPE"])
-
-            # Encode the training data
-            x["REGION"] = le_region.transform(x["REGION"])
-            x["CROP"] = le_crop.transform(x["CROP"])
-            x["SOIL_TYPE"] = le_soil.transform(x["SOIL_TYPE"])
+            # Fit and transform label encoders
+            x["REGION"] = le_region.fit_transform(x["REGION"])
+            x["CROP"] = le_crop.fit_transform(x["CROP"])
+            x["SOIL_TYPE"] = le_soil.fit_transform(x["SOIL_TYPE"])
 
             # Standardize the data
             scaler = StandardScaler()
             x = scaler.fit_transform(x)
 
-            # Train the model, only if there are enough samples
-            if len(x) > 1:
-                x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
-                self.model = RandomForestClassifier()
-                self.model.fit(x_train, y_train)
+            # Split the data into train and test sets
+            x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
 
-                # Evaluate the model
-                y_pred = self.model.predict(x_test)
-                accuracy = accuracy_score(y_test, y_pred)
-                print(f"Model accuracy: {accuracy * 100:.2f}%")
-            else:
-                # Train the model on the entire dataset if we don't have enough data to split
-                self.model = RandomForestClassifier()
-                self.model.fit(x, y)
-                print("Trained on the entire dataset due to insufficient samples for splitting.")
+            # Train the model
+            self.model = RandomForestClassifier()
+            self.model.fit(x_train, y_train)
+
+            # Evaluate the model
+            y_pred = self.model.predict(x_test)
+            accuracy = accuracy_score(y_test, y_pred)
+            print(f"Model accuracy: {accuracy * 100:.2f}%")
 
             return x, y, le_region, le_crop, le_soil, scaler
 
-        else:
-            # Handle the case where there are no records
-            messagebox.showerror("Error", "No data available to train the model.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load data and train the model: {str(e)}")
             return None, None, None, None, None, None
-
 
     def predict_season(self, model, x_input):
         if model is not None:
             prediction = model.predict(x_input)
-            # Convert the model's prediction to a season in months
-            return self.map_prediction_to_months(prediction[0])
+            season = prediction[0]
+            print(f"Predicted season: {season}")
+            return season
         else:
+            print("Model is not trained or available.")
             return "Unknown"
 
-    def map_prediction_to_months(self, prediction):
-        # This is a placeholder. Replace it with actual logic to map prediction to months.
-        season_map = {
-            "Spring": "March - May",
-            "Summer": "June - August",
-            "Autumn": "September - November",
-            "Winter": "December - February"
-        }
-        return season_map.get(prediction, "Unknown")
-
     def fetch_data(self):
-        conn = mysql.connector.connect(host="localhost", user="root", password="An@nd3009", database="cropping_recommendation_system")
+        conn = mysql.connector.connect(host="localhost", user="root", password="Amar0311@0704", database="cropping_recommendation_system")
         my_cursor = conn.cursor()
         my_cursor.execute("SELECT * FROM recommendation")
         rows = my_cursor.fetchall()
-        conn.close()
-        
         if len(rows) != 0:
             self.cropping_table.delete(*self.cropping_table.get_children())
             for row in rows:
-                self.cropping_table.insert('', END, values=row)
+                self.cropping_table.insert("", END, values=row)
+            conn.commit()
+        conn.close()
 
 if __name__ == "__main__":
     root = Tk()
